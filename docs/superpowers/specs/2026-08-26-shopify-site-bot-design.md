@@ -79,8 +79,13 @@ shopify-site-bot/
    Server starts a job and streams progress back over SSE as each step
    below completes or fails.
 3. **Theme upload** — all files under `server/theme-template/` are pushed
-   to a new theme on the store via the Admin GraphQL `themeFilesUpsert`
-   mutation (bulk upload, not one REST call per file).
+   to a new theme on the store. The implementation plan chose the Admin
+   REST Asset API (one `PUT .../assets.json` call per file, sequential,
+   rate-limited) over this section's original `themeFilesUpsert` GraphQL
+   bulk-upload idea — REST is the long-standing, unambiguous mechanism,
+   at the cost of a ~5-8 minute upload for the theme's 439 files instead
+   of a handful of bulk calls. This is a deliberate, documented trade-off
+   from implementation, not a bug.
 4. **Brand customization** — logo file is uploaded as a theme asset;
    `settings_data.json` is patched with the logo reference, primary
    color, and store name/hero copy, then re-uploaded.
