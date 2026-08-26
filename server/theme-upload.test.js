@@ -1,19 +1,35 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { classifyThemeFiles, uploadThemeFiles } = require('./theme-upload.js');
 
 test('classifyThemeFiles marks liquid/json/css/js as TEXT and images as BASE64', () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'theme-classify-'));
+  fs.writeFileSync(path.join(tmpDir, 'settings.json'), '{}');
+  fs.mkdirSync(path.join(tmpDir, 'assets'));
+  fs.writeFileSync(path.join(tmpDir, 'assets', 'logo.png'), Buffer.from([0, 1, 2, 3]));
+
+  const files = classifyThemeFiles(tmpDir);
+
+  const jsonFile = files.find((f) => f.key === 'settings.json');
+  assert.equal(jsonFile.encoding, 'TEXT');
+
+  const imageFile = files.find((f) => f.key === 'assets/logo.png');
+  assert.equal(imageFile.encoding, 'BASE64');
+
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+});
+
+test('classifyThemeFiles finds the full bundled theme file count and classifies real files as TEXT', () => {
   const themeDir = path.join(__dirname, 'theme-template');
   const files = classifyThemeFiles(themeDir);
 
+  assert.ok(files.length > 400, 'expected the full bundled theme file count');
+
   const settingsSchema = files.find((f) => f.key === 'config/settings_schema.json');
   assert.equal(settingsSchema.encoding, 'TEXT');
-
-  const image = files.find((f) => f.key.startsWith('assets/') && /\.(png|jpg|jpeg|svg|gif|woff2?)$/.test(f.key));
-  assert.ok(image, 'expected at least one binary asset in the bundled theme');
-
-  assert.ok(files.length > 100, 'expected the full bundled theme file count');
 });
 
 test('uploadThemeFiles uploads every file and reports failures without stopping', async () => {
