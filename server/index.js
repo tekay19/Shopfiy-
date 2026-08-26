@@ -41,8 +41,9 @@ function createApp(deps = {}) {
 
   app.post('/api/create-store', upload.fields([{ name: 'logo', maxCount: 1 }, { name: 'productsCsv', maxCount: 1 }]), (req, res) => {
     const { shopDomain, accessToken, storeName, primaryColorHex } = req.body;
-    const logoFile = req.files.logo && req.files.logo[0];
-    const csvFile = req.files.productsCsv && req.files.productsCsv[0];
+    const files = req.files || {};
+    const logoFile = files.logo && files.logo[0];
+    const csvFile = files.productsCsv && files.productsCsv[0];
 
     if (!shopDomain || !accessToken || !storeName || !primaryColorHex || !logoFile || !csvFile) {
       return res.status(400).json({ error: 'Eksik alan var.' });
@@ -52,7 +53,12 @@ function createApp(deps = {}) {
     }
 
     const shopifyClient = createShopifyClient(shopDomain, accessToken);
-    const aiClient = createAiClient(createOpenAiClient());
+    let aiClient;
+    try {
+      aiClient = createAiClient(createOpenAiClient());
+    } catch (err) {
+      return res.status(400).json({ error: 'OpenAI API anahtarı eksik veya geçersiz. .env dosyasını kontrol edin.' });
+    }
     const themeTemplateDir = path.join(__dirname, 'theme-template');
 
     const jobId = jobStore.startJob((emit) => runCreateStoreJob({
@@ -98,6 +104,14 @@ function createApp(deps = {}) {
     req.on('close', unsubscribe);
   });
 
+  app.use((err, req, res, next) => {
+    if (err && err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'Dosya çok büyük (limit 20MB).' });
+    }
+    console.error(err);
+    res.status(500).json({ error: 'Sunucu hatası.' });
+  });
+
   return app;
 }
 
@@ -108,7 +122,7 @@ function main() {
   app.listen(port, '127.0.0.1', () => console.log(`shopify-site-bot listening on http://localhost:${port}`));
 }
 
-if (!module.parent && process.argv[1]?.endsWith('index.js')) {
+if (require.main === module) {
   main();
 }
 

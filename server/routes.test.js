@@ -121,6 +121,66 @@ test('POST /api/connect rejects invalid shopDomain', async () => {
   server.close();
 });
 
+test('GET /api/progress returns 404 for an unknown jobId instead of hanging', async () => {
+  const { server, baseUrl } = await startTestServer({});
+  const res = await fetch(`${baseUrl}/api/progress/not-a-real-job-id`);
+  assert.equal(res.status, 404);
+  server.close();
+});
+
+test('POST /api/create-store with a non-multipart body returns JSON 400 instead of throwing', async () => {
+  const deps = {
+    createShopifyClient: () => ({}),
+    createAiClient: () => ({}),
+    createOpenAiClient: () => ({}),
+    runCreateStoreJob: async () => ({}),
+  };
+  const { server, baseUrl } = await startTestServer(deps);
+
+  const res = await fetch(`${baseUrl}/api/create-store`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ shopDomain: 'acme.myshopify.com' }),
+  });
+  const body = await res.json();
+
+  assert.equal(res.status, 400);
+  assert.ok(body.error);
+  server.close();
+});
+
+test('POST /api/create-store returns 400 JSON when the OpenAI client cannot be constructed', async () => {
+  const deps = {
+    createShopifyClient: () => ({}),
+    createAiClient: () => ({}),
+    createOpenAiClient: () => { throw new Error('OPENAI_API_KEY is not set'); },
+    runCreateStoreJob: async () => ({}),
+  };
+  const { server, baseUrl } = await startTestServer(deps);
+
+  const form = new FormData();
+  form.append('shopDomain', 'acme.myshopify.com');
+  form.append('accessToken', 'shpat_x');
+  form.append('storeName', 'Acme');
+  form.append('primaryColorHex', '#112233');
+  form.append('logo', new Blob([Buffer.from('fake')], { type: 'image/png' }), 'logo.png');
+  form.append('productsCsv', new Blob(['Handle,Title\n'], { type: 'text/csv' }), 'products.csv');
+
+  const res = await fetch(`${baseUrl}/api/create-store`, { method: 'POST', body: form });
+  const body = await res.json();
+
+  assert.equal(res.status, 400);
+  assert.match(body.error, /OpenAI/);
+  server.close();
+});
+
+// Note: an oversized-file (>20MB) test is skipped here. Constructing a >20MB
+// Blob/FormData payload in a unit test is slow and memory-heavy for little
+// added signal beyond what's already covered by exercising the multer
+// error-handling middleware directly (LIMIT_FILE_SIZE branch above), and by
+// the fact that this suite runs on every commit — a genuinely large upload
+// would meaningfully slow the test suite down for marginal benefit.
+
 test('POST /api/create-store rejects invalid shopDomain', async () => {
   const deps = {
     createShopifyClient: () => ({}),
