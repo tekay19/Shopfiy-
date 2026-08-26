@@ -1445,6 +1445,7 @@ test('POST /api/create-store starts a job and GET /api/progress streams events t
   const deps = {
     createShopifyClient: () => ({}),
     createAiClient: () => ({}),
+    createOpenAiClient: () => ({}),
     runCreateStoreJob: async (input, emit) => {
       emit({ step: 'theme_upload', status: 'ok', message: 'done uploading' });
       emit({ step: 'done', status: 'ok', message: 'ready' });
@@ -1545,6 +1546,7 @@ function createApp(deps = {}) {
     createShopifyClient = require('./shopify.js').createShopifyClient,
     createAiClient = require('./ai.js').createAiClient,
     runCreateStoreJob = require('./job-runner.js').runCreateStoreJob,
+    createOpenAiClient = () => new (require('openai'))(),
   } = deps;
 
   const app = express();
@@ -1576,7 +1578,7 @@ function createApp(deps = {}) {
     }
 
     const shopifyClient = createShopifyClient(shopDomain, accessToken);
-    const aiClient = createAiClient(new (require('openai'))());
+    const aiClient = createAiClient(createOpenAiClient());
     const themeTemplateDir = path.join(__dirname, 'theme-template');
 
     const jobId = jobStore.startJob((emit) => runCreateStoreJob({
