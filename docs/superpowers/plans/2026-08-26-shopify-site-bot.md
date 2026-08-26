@@ -140,7 +140,7 @@ function main() {
   require('dotenv').config();
   const app = createApp();
   const port = process.env.PORT || 3000;
-  app.listen(port, () => console.log(`shopify-site-bot listening on http://localhost:${port}`));
+  app.listen(port, '127.0.0.1', () => console.log(`shopify-site-bot listening on http://localhost:${port}`));
 }
 
 if (require.main === module) {
@@ -1494,6 +1494,80 @@ test('POST /api/create-store starts a job and GET /api/progress streams events t
   assert.match(text, /"step":"done"/);
   server.close();
 });
+
+test('GET /api/progress streams live events emitted after the request starts, not just replayed ones', async () => {
+  const deps = {
+    createShopifyClient: () => ({}),
+    createAiClient: () => ({}),
+    createOpenAiClient: () => ({}),
+    runCreateStoreJob: (input, emit) => new Promise((resolve) => {
+      emit({ step: 'theme_upload', status: 'start', message: 'starting' });
+      setTimeout(() => {
+        emit({ step: 'theme_upload', status: 'ok', message: 'done uploading' });
+        emit({ step: 'done', status: 'ok', message: 'ready' });
+        resolve({ themeId: 1, productsCreated: 0, productsFailed: 0, collectionsCreated: 0, pagesCreated: 0, published: true });
+      }, 50);
+    }),
+  };
+  const { server, baseUrl } = await startTestServer(deps);
+
+  const form = new FormData();
+  form.append('shopDomain', 'acme.myshopify.com');
+  form.append('accessToken', 'shpat_x');
+  form.append('storeName', 'Acme');
+  form.append('primaryColorHex', '#112233');
+  form.append('logo', new Blob([Buffer.from('fake')], { type: 'image/png' }), 'logo.png');
+  form.append('productsCsv', new Blob(['Handle,Title\n'], { type: 'text/csv' }), 'products.csv');
+
+  const createRes = await fetch(`${baseUrl}/api/create-store`, { method: 'POST', body: form });
+  const { jobId } = await createRes.json();
+
+  const progressRes = await fetch(`${baseUrl}/api/progress/${jobId}`);
+  const text = await progressRes.text();
+
+  assert.match(text, /"step":"theme_upload"/);
+  assert.match(text, /"step":"done"/);
+  server.close();
+});
+
+test('GET /api/progress returns 404 for an unknown jobId instead of hanging', async () => {
+  const { server, baseUrl } = await startTestServer({});
+
+  const res = await fetch(`${baseUrl}/api/progress/not-a-real-job-id`);
+
+  assert.equal(res.status, 404);
+  server.close();
+});
+
+test('POST /api/connect rejects a non-myshopify.com shopDomain', async () => {
+  const { server, baseUrl } = await startTestServer({});
+
+  const res = await fetch(`${baseUrl}/api/connect`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ shopDomain: 'evil.com', accessToken: 'shpat_x' }),
+  });
+
+  assert.equal(res.status, 400);
+  server.close();
+});
+
+test('POST /api/create-store rejects a non-myshopify.com shopDomain', async () => {
+  const { server, baseUrl } = await startTestServer({});
+
+  const form = new FormData();
+  form.append('shopDomain', 'evil.com');
+  form.append('accessToken', 'shpat_x');
+  form.append('storeName', 'Acme');
+  form.append('primaryColorHex', '#112233');
+  form.append('logo', new Blob([Buffer.from('fake')], { type: 'image/png' }), 'logo.png');
+  form.append('productsCsv', new Blob(['Handle,Title\n'], { type: 'text/csv' }), 'products.csv');
+
+  const res = await fetch(`${baseUrl}/api/create-store`, { method: 'POST', body: form });
+
+  assert.equal(res.status, 400);
+  server.close();
+});
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -1547,7 +1621,11 @@ function createJobStore() {
     return doneJobs.has(jobId);
   }
 
-  return { startJob, getEvents, subscribe, isDone };
+  function jobExists(jobId) {
+    return eventsByJob.has(jobId);
+  }
+
+  return { startJob, getEvents, subscribe, isDone, jobExists };
 }
 
 module.exports = { createJobStore };
@@ -1562,6 +1640,12 @@ const express = require('express');
 const multer = require('multer');
 const { createJobStore } = require('./jobs.js');
 
+const SHOP_DOMAIN_PATTERN = /^[a-z0-9-]+\.myshopify\.com$/i;
+
+function isValidShopDomain(domain) {
+  return typeof domain === 'string' && SHOP_DOMAIN_PATTERN.test(domain);
+}
+
 function createApp(deps = {}) {
   const {
     createShopifyClient = require('./shopify.js').createShopifyClient,
@@ -1571,7 +1655,7 @@ function createApp(deps = {}) {
   } = deps;
 
   const app = express();
-  const upload = multer({ storage: multer.memoryStorage() });
+  const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
   const jobStore = createJobStore();
 
   app.use(express.static(path.join(__dirname, '..', 'public')));
@@ -1583,6 +1667,9 @@ function createApp(deps = {}) {
     const { shopDomain, accessToken } = req.body;
     if (!shopDomain || !accessToken) {
       return res.status(400).json({ ok: false, error: 'shopDomain ve accessToken zorunlu' });
+    }
+    if (!isValidShopDomain(shopDomain)) {
+      return res.status(400).json({ ok: false, error: 'Geçersiz shopDomain (örn: magaza.myshopify.com olmalı)' });
     }
     const client = createShopifyClient(shopDomain, accessToken);
     const result = await client.testConnection();
@@ -1596,6 +1683,9 @@ function createApp(deps = {}) {
 
     if (!shopDomain || !accessToken || !storeName || !primaryColorHex || !logoFile || !csvFile) {
       return res.status(400).json({ error: 'Eksik alan var.' });
+    }
+    if (!isValidShopDomain(shopDomain)) {
+      return res.status(400).json({ error: 'Geçersiz shopDomain (örn: magaza.myshopify.com olmalı)' });
     }
 
     const shopifyClient = createShopifyClient(shopDomain, accessToken);
@@ -1619,6 +1709,9 @@ function createApp(deps = {}) {
 
   app.get('/api/progress/:jobId', (req, res) => {
     const { jobId } = req.params;
+    if (!jobStore.jobExists(jobId)) {
+      return res.status(404).json({ error: 'Bilinmeyen jobId' });
+    }
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
@@ -1649,7 +1742,7 @@ function main() {
   require('dotenv').config();
   const app = createApp();
   const port = process.env.PORT || 3000;
-  app.listen(port, () => console.log(`shopify-site-bot listening on http://localhost:${port}`));
+  app.listen(port, '127.0.0.1', () => console.log(`shopify-site-bot listening on http://localhost:${port}`));
 }
 
 if (require.main === module) {
