@@ -15,7 +15,11 @@ async function runCreateStoreJob(input, emit) {
   emit({ step: 'theme_upload', status: 'start', message: 'Tema yükleniyor...' });
   const { id: themeId } = await shopifyClient.createUnpublishedTheme(`${storeName} (site-bot)`);
   const files = classifyThemeFiles(themeTemplateDir);
-  const uploadResult = await uploadThemeFiles(shopifyClient, themeId, files);
+  const uploadResult = await uploadThemeFiles(shopifyClient, themeId, files, (done, total) => {
+    if (done % 25 === 0 || done === total) {
+      emit({ step: 'theme_upload', status: 'start', message: `Tema dosyaları yükleniyor: ${done}/${total}` });
+    }
+  });
   emit({
     step: 'theme_upload',
     status: 'ok',

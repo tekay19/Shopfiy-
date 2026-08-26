@@ -69,6 +69,8 @@ test('runs the full pipeline and returns a summary', async () => {
   assert.equal(summary.published, true);
   assert.ok(events.some((e) => e.step === 'theme_upload' && e.status === 'ok'));
   assert.ok(events.some((e) => e.step === 'done'));
+  const themeUploadEvents = events.filter((e) => e.step === 'theme_upload');
+  assert.ok(themeUploadEvents.length > 2, 'expected multiple theme_upload progress events, not just start+ok');
 });
 
 test('a single failing product does not abort the run', async () => {
