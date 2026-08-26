@@ -1,0 +1,61 @@
+<div id="sp-custom-html-section" class="sp-custom-section">
+  {% if section.settings.title != blank %}
+    <div class="sp-custom-title">
+      <h2>{{ section.settings.title }}</h2>
+    </div>
+  {% endif %}
+
+  {% if section.settings.custom_html != blank %}
+    <div class="sp-custom-content">
+      {{ section.settings.custom_html }}
+    </div>
+  {% endif %}
+</div>
+
+<style>
+  .sp-custom-section {
+    position: relative;
+    padding: 20px 0;
+  }
+
+  .sp-custom-title {
+    text-align: center;
+    margin-bottom: 15px;
+  }
+
+  .sp-custom-title h2 {
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0;
+  }
+
+  .sp-custom-content img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+  }
+</style>
+
+{% schema %}
+{
+  "name": "Custom HTML",
+  "settings": [
+    {
+      "type": "text",
+      "id": "title",
+      "label": "Section Title"
+    },
+    {
+      "type": "textarea",
+      "id": "custom_html",
+      "label": "Custom HTML"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Custom HTML",
+      "category": "Custom"
+    }
+  ]
+}
+{% endschema %}

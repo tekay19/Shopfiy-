@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>Shopify Site Bot</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; }
+    fieldset { margin-bottom: 16px; }
+    label { display: block; margin-top: 8px; font-weight: 600; }
+    input { width: 100%; padding: 6px; box-sizing: border-box; }
+    button { margin-top: 12px; padding: 8px 16px; }
+    #log { background: #111; color: #0f0; font-family: monospace; padding: 12px; height: 240px; overflow-y: auto; white-space: pre-wrap; }
+    #storeFields { display: none; }
+    #connectStatus { margin-top: 8px; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h1>Shopify Site Bot</h1>
+
+  <fieldset>
+    <legend>1. Mağazaya bağlan</legend>
+    <label for="shopDomain">Mağaza domaini (örn. dryvex2.myshopify.com)</label>
+    <input id="shopDomain" type="text" placeholder="magaza.myshopify.com">
+    <label for="accessToken">Admin API access token</label>
+    <input id="accessToken" type="password" placeholder="shpat_...">
+    <button id="connectBtn">Bağlan</button>
+    <div id="connectStatus"></div>
+  </fieldset>
+
+  <fieldset id="storeFields">
+    <legend>2. Mağaza bilgileri</legend>
+    <label for="storeName">Mağaza adı</label>
+    <input id="storeName" type="text">
+    <label for="primaryColorHex">Ana renk</label>
+    <input id="primaryColorHex" type="color" value="#dd1d1d">
+    <label for="logo">Logo</label>
+    <input id="logo" type="file" accept="image/*">
+    <label for="productsCsv">Ürün CSV</label>
+    <input id="productsCsv" type="file" accept=".csv">
+    <button id="createBtn">Mağazayı Oluştur</button>
+  </fieldset>
+
+  <div id="log"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
