@@ -9,7 +9,7 @@
   },
   "scripts": {
     "start": "node server/index.js",
-    "test": "node --test server"
+    "test": "node --test"
   },
   "dependencies": {
     "csv-parse": "^5.5.6",
