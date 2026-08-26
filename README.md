@@ -19,25 +19,32 @@ Admin API access token for it before running this tool.
 ## Getting a store's Admin API token
 
 In the target store's Shopify admin: **Settings → Apps and sales
-channels → Develop apps → Create an app**. Grant Admin API scopes for
-themes, products, collections, and pages (read and write). Install the
-app and copy the Admin API access token — paste it into the form.
+channels → Develop apps → Create an app**. Grant these Admin API access
+scopes: `write_themes`, `write_products`, `write_content`,
+`write_files`. Note: `write_files` is easy to miss but required —
+without it the logo/image upload step will fail. Install the app and
+copy the Admin API access token — paste it into the form.
 
 ## Using it
 
 1. Enter the store domain and Admin API token, click **Bağlan**.
 2. Once connected, fill in store name, primary color, logo, and a
    standard Shopify product export CSV.
-3. Click **Mağazayı Oluştur** and watch the live log. This takes a few
-   minutes (theme upload is ~350 files, uploaded sequentially to respect
-   Shopify's rate limits).
+3. Click **Mağazayı Oluştur** and watch the live log. This takes about
+   5-8 minutes (theme upload is 439 files, uploaded sequentially to
+   respect Shopify's rate limits — it's the dominant cost).
 
 ## Known limitations
 
-- The theme's `featured_product` homepage section references a specific
-  product handle from the original Shopfinity demo store. It will not
-  match your products — review and update that section in the Shopify
-  theme editor after a run.
+- Several homepage sections reference leftover demo content from the
+  original Shopfinity demo store's live export and won't resolve on a
+  new store — review and replace all of them in the theme editor after
+  a run, not just the featured product:
+  - `featured_product` references a specific demo product handle.
+  - `featured_collection` references a specific demo collection handle.
+  - The two "custom columns" sections reference demo product handles
+    and demo image files under `shopify://shop_images/ChatGPT_Image_*`
+    and `shopify://products/...`.
 - The logo `shopify://shop_images/<filename>` reference relies on a
   long-standing but not officially documented Shopify behavior. If the
   logo doesn't appear after a run, open the theme editor and re-select
