@@ -20,6 +20,7 @@ test('inferBrandVoice returns the parsed tone', async () => {
   const client = createAiClient(fakeOpenAiClient({ tone: 'playful and budget-friendly' }));
   const result = await client.inferBrandVoice({ storeName: 'Acme', sampleProductTitles: ['Red Mug'] });
   assert.equal(result.tone, 'playful and budget-friendly');
+  assert.match(JSON.stringify(fakeOpenAiClient.lastParams.messages), /Acme/);
 });
 
 test('rewriteProduct sends the product context and returns rewritten fields', async () => {
@@ -51,6 +52,7 @@ test('writeCollectionCopy returns title and bodyHtml', async () => {
     title: 'Stunning Mugs',
     bodyHtml: '<p>Explore our collection of beautiful mugs.</p>',
   });
+  assert.match(JSON.stringify(fakeOpenAiClient.lastParams.messages), /Mugs/);
 });
 
 test('writePageCopy returns title and bodyHtml for a specific page type', async () => {
@@ -63,10 +65,13 @@ test('writePageCopy returns title and bodyHtml for a specific page type', async 
     title: 'About Acme',
     bodyHtml: '<p>We are committed to quality.</p>',
   });
+  assert.match(JSON.stringify(fakeOpenAiClient.lastParams.messages), /about/);
+  assert.match(JSON.stringify(fakeOpenAiClient.lastParams.messages), /Acme/);
 });
 
 test('writeHeroCopy returns heading/text/buttonLabel', async () => {
   const client = createAiClient(fakeOpenAiClient({ heading: 'Acme', text: '<p>Hi</p>', buttonLabel: 'Shop Now' }));
   const result = await client.writeHeroCopy({ storeName: 'Acme', brandVoice: 'playful' });
   assert.deepEqual(result, { heading: 'Acme', text: '<p>Hi</p>', buttonLabel: 'Shop Now' });
+  assert.match(JSON.stringify(fakeOpenAiClient.lastParams.messages), /Acme/);
 });
