@@ -21,6 +21,7 @@ function parseProductsCsv(csvText) {
         seoDescription: row['SEO Description'] || '',
         images: [],
         variants: [],
+        optionNames: [],
       });
     }
 
@@ -30,6 +31,13 @@ function parseProductsCsv(csvText) {
     if (imageSrc && !product.images.includes(imageSrc)) {
       product.images.push(imageSrc);
     }
+
+    ['Option1 Name', 'Option2 Name', 'Option3 Name'].forEach((col, idx) => {
+      const name = (row[col] || '').trim();
+      if (name && !product.optionNames[idx]) {
+        product.optionNames[idx] = name;
+      }
+    });
 
     const hasVariantData = row['Variant SKU'] || row['Option1 Value'] || row['Variant Price'];
     if (hasVariantData) {
@@ -43,6 +51,10 @@ function parseProductsCsv(csvText) {
         inventoryQty: row['Variant Inventory Qty'] ? Number(row['Variant Inventory Qty']) : 0,
       });
     }
+  }
+
+  for (const product of productsByHandle.values()) {
+    product.optionNames = product.optionNames.filter(Boolean);
   }
 
   return Array.from(productsByHandle.values());
