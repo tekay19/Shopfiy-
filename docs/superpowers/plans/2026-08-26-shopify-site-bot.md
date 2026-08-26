@@ -1219,6 +1219,8 @@ test('runs the full pipeline and returns a summary', async () => {
   assert.equal(summary.pagesCreated, 3);
   assert.equal(summary.published, true);
   assert.ok(events.some((e) => e.step === 'theme_upload' && e.status === 'ok'));
+  const themeUploadEvents = events.filter((e) => e.step === 'theme_upload');
+  assert.ok(themeUploadEvents.length > 2, 'expected multiple theme_upload progress events, not just start+ok');
   assert.ok(events.some((e) => e.step === 'done'));
 });
 
@@ -1269,7 +1271,11 @@ async function runCreateStoreJob(input, emit) {
   emit({ step: 'theme_upload', status: 'start', message: 'Tema yükleniyor...' });
   const { id: themeId } = await shopifyClient.createUnpublishedTheme(`${storeName} (site-bot)`);
   const files = classifyThemeFiles(themeTemplateDir);
-  const uploadResult = await uploadThemeFiles(shopifyClient, themeId, files);
+  const uploadResult = await uploadThemeFiles(shopifyClient, themeId, files, (done, total) => {
+    if (done % 25 === 0 || done === total) {
+      emit({ step: 'theme_upload', status: 'start', message: `Tema dosyaları yükleniyor: ${done}/${total}` });
+    }
+  });
   emit({
     step: 'theme_upload',
     status: 'ok',
