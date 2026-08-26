@@ -40,7 +40,11 @@ function createJobStore() {
     return doneJobs.has(jobId);
   }
 
-  return { startJob, getEvents, subscribe, isDone };
+  function jobExists(jobId) {
+    return eventsByJob.has(jobId);
+  }
+
+  return { startJob, getEvents, subscribe, isDone, jobExists };
 }
 
 module.exports = { createJobStore };
