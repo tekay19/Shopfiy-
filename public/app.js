@@ -12,12 +12,19 @@ document.getElementById('connectBtn').addEventListener('click', async () => {
   const accessToken = document.getElementById('accessToken').value.trim();
   connectStatus.textContent = 'Bağlanıyor...';
 
-  const res = await fetch('/api/connect', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ shopDomain, accessToken }),
-  });
-  const body = await res.json();
+  let body;
+  try {
+    const res = await fetch('/api/connect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shopDomain, accessToken }),
+    });
+    body = await res.json();
+  } catch (err) {
+    connectStatus.textContent = `✗ Bağlanamadı: ${err.message || 'ağ hatası'}`;
+    storeFields.style.display = 'none';
+    return;
+  }
 
   if (body.ok) {
     connectStatus.textContent = `✓ Bağlandı: ${body.shopName}`;
@@ -40,8 +47,14 @@ document.getElementById('createBtn').addEventListener('click', async () => {
   logEl.textContent = '';
   appendLog('Mağaza oluşturma başlatılıyor...');
 
-  const res = await fetch('/api/create-store', { method: 'POST', body: form });
-  const { jobId, error } = await res.json();
+  let jobId, error;
+  try {
+    const res = await fetch('/api/create-store', { method: 'POST', body: form });
+    ({ jobId, error } = await res.json());
+  } catch (err) {
+    appendLog(`✗ İstek başarısız: ${err.message || 'ağ hatası'}`);
+    return;
+  }
   if (error) {
     appendLog(`✗ ${error}`);
     return;
@@ -53,6 +66,10 @@ document.getElementById('createBtn').addEventListener('click', async () => {
     const icon = event.status === 'error' ? '✗' : event.status === 'ok' ? '✓' : '…';
     appendLog(`${icon} [${event.step}] ${event.message}`);
     if (event.step === 'done') {
+      if (event.summary) {
+        const s = event.summary;
+        appendLog(`Özet: ${s.productsCreated} ürün, ${s.collectionsCreated} koleksiyon, ${s.pagesCreated} sayfa oluşturuldu. Yayınlandı: ${s.published ? 'evet' : 'hayır'}${s.themeFilesFailed ? ` (${s.themeFilesFailed} tema dosyası yüklenemedi)` : ''}`);
+      }
       source.close();
     }
   };
