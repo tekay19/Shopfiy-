@@ -6,6 +6,8 @@ function patchSettingsData(settingsDataJsonText, { primaryColorHex, logoFilename
   data.current = data.current || {};
   data.current.colors_accent_1 = primaryColorHex;
   data.current.colors_accent_2 = primaryColorHex;
+  data.current.gradient_accent_1 = '';
+  data.current.gradient_accent_2 = '';
   data.current.logo = `shopify://shop_images/${logoFilename}`;
   return JSON.stringify(data, null, 2);
 }
