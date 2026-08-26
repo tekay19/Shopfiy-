@@ -54,6 +54,55 @@ test('putThemeAsset retries once on 429 then succeeds', async () => {
   assert.equal(fetchImpl.calls.length, 2);
 });
 
+test('restRequest retries once on a 500 response then succeeds', async () => {
+  const fetchImpl = fakeFetch([
+    { status: 500, body: { errors: 'internal error' } },
+    { status: 200, body: { asset: { key: 'templates/index.json' } } },
+  ]);
+  const client = createShopifyClient('acme.myshopify.com', 'shpat_test', { fetchImpl, delayMs: 0 });
+
+  await client.putThemeAsset(123, 'templates/index.json', { value: '{}' });
+
+  assert.equal(fetchImpl.calls.length, 2);
+});
+
+test('restRequest retries after a thrown network error then succeeds', async () => {
+  let call = 0;
+  const calls = [];
+  const fetchImpl = async (url, opts) => {
+    calls.push({ url, opts });
+    call += 1;
+    if (call === 1) throw new Error('network down');
+    return {
+      ok: true,
+      status: 200,
+      headers: new Map(),
+      json: async () => ({ asset: { key: 'templates/index.json' } }),
+    };
+  };
+  fetchImpl.calls = calls;
+  const client = createShopifyClient('acme.myshopify.com', 'shpat_test', { fetchImpl, delayMs: 0 });
+
+  await client.putThemeAsset(123, 'templates/index.json', { value: '{}' });
+
+  assert.equal(fetchImpl.calls.length, 2);
+});
+
+test('Retry-After: 0 does not incorrectly wait a full second before retrying', async () => {
+  const fetchImpl = fakeFetch([
+    { status: 429, headers: { 'Retry-After': '0' }, body: {} },
+    { status: 200, body: { asset: { key: 'templates/index.json' } } },
+  ]);
+  const client = createShopifyClient('acme.myshopify.com', 'shpat_test', { fetchImpl, delayMs: 0 });
+
+  const start = Date.now();
+  await client.putThemeAsset(123, 'templates/index.json', { value: '{}' });
+  const elapsed = Date.now() - start;
+
+  assert.equal(fetchImpl.calls.length, 2);
+  assert.ok(elapsed < 500, `expected near-immediate retry, took ${elapsed}ms`);
+});
+
 test('createProduct posts to products.json and returns id/handle', async () => {
   const fetchImpl = fakeFetch([
     { status: 201, body: { product: { id: 999, handle: 'red-mug' } } },

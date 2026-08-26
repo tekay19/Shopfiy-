@@ -14,20 +14,40 @@ function createShopifyClient(shopDomain, accessToken, opts = {}) {
     await new Promise((resolve) => setTimeout(resolve, ms));
   }
 
+  const NETWORK_ERROR_BACKOFF_MS = 500;
+  const SERVER_ERROR_BACKOFF_MS = 500;
+
   async function restRequest(method, path, body) {
     for (let attempt = 0; attempt < 3; attempt += 1) {
-      const res = await fetchImpl(baseUrl(path), {
-        method,
-        headers: {
-          'X-Shopify-Access-Token': accessToken,
-          'Content-Type': 'application/json',
-        },
-        body: body ? JSON.stringify(body) : undefined,
-      });
+      let res;
+      try {
+        res = await fetchImpl(baseUrl(path), {
+          method,
+          headers: {
+            'X-Shopify-Access-Token': accessToken,
+            'Content-Type': 'application/json',
+          },
+          body: body ? JSON.stringify(body) : undefined,
+        });
+      } catch (err) {
+        if (attempt < 2) {
+          await sleep(NETWORK_ERROR_BACKOFF_MS);
+          continue;
+        }
+        throw err;
+      }
 
       if (res.status === 429) {
-        const retryAfter = Number(res.headers.get ? res.headers.get('Retry-After') : res.headers['Retry-After']) || 1;
+        const retryAfterHeader = Number(res.headers.get ? res.headers.get('Retry-After') : res.headers['Retry-After']);
+        const retryAfter = Number.isFinite(retryAfterHeader) ? retryAfterHeader : 1;
+        await res.json().catch(() => {});
         await sleep(retryAfter * 1000);
+        continue;
+      }
+
+      if (res.status >= 500) {
+        await res.json().catch(() => {});
+        await sleep(SERVER_ERROR_BACKOFF_MS);
         continue;
       }
 
@@ -46,20 +66,39 @@ function createShopifyClient(shopDomain, accessToken, opts = {}) {
   }
 
   async function graphqlRequest(query, variables) {
-    const res = await fetchImpl(baseUrl('graphql.json'), {
-      method: 'POST',
-      headers: {
-        'X-Shopify-Access-Token': accessToken,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ query, variables }),
-    });
-    await sleep(delayMs);
-    const json = await res.json();
-    if (!res.ok || json.errors) {
-      throw new Error(`Shopify GraphQL request failed: ${res.status} ${JSON.stringify(json.errors || json)}`);
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      let res;
+      try {
+        res = await fetchImpl(baseUrl('graphql.json'), {
+          method: 'POST',
+          headers: {
+            'X-Shopify-Access-Token': accessToken,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ query, variables }),
+        });
+      } catch (err) {
+        if (attempt < 2) {
+          await sleep(NETWORK_ERROR_BACKOFF_MS);
+          continue;
+        }
+        throw err;
+      }
+
+      if (res.status >= 500) {
+        await res.json().catch(() => {});
+        await sleep(SERVER_ERROR_BACKOFF_MS);
+        continue;
+      }
+
+      await sleep(delayMs);
+      const json = await res.json();
+      if (!res.ok || json.errors) {
+        throw new Error(`Shopify GraphQL request failed: ${res.status} ${JSON.stringify(json.errors || json)}`);
+      }
+      return json.data;
     }
-    return json.data;
+    throw new Error('Shopify GraphQL request failed after retries (server error)');
   }
 
   async function testConnection() {
