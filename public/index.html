@@ -12,10 +12,19 @@
     #log { background: #111; color: #0f0; font-family: monospace; padding: 12px; height: 240px; overflow-y: auto; white-space: pre-wrap; }
     #storeFields { display: none; }
     #connectStatus { margin-top: 8px; font-weight: 600; }
+    .tabs { margin-bottom: 16px; }
+    .tab-btn { padding: 8px 16px; margin-right: 8px; cursor: pointer; }
+    .tab-btn.active { font-weight: 700; border-bottom: 2px solid #111; }
+    #studioResults img { max-width: 160px; margin: 4px; }
   </style>
 </head>
 <body>
   <h1>Shopify Site Bot</h1>
+
+  <div class="tabs">
+    <button id="tabCsvBtn" class="tab-btn active">Toplu Katalog (CSV)</button>
+    <button id="tabStudioBtn" class="tab-btn">Tek Ürün AI Stüdyosu</button>
+  </div>
 
   <fieldset>
     <legend>1. Mağazaya bağlan</legend>
@@ -27,18 +36,44 @@
     <div id="connectStatus"></div>
   </fieldset>
 
-  <fieldset id="storeFields">
-    <legend>2. Mağaza bilgileri</legend>
-    <label for="storeName">Mağaza adı</label>
-    <input id="storeName" type="text">
-    <label for="primaryColorHex">Ana renk</label>
-    <input id="primaryColorHex" type="color" value="#dd1d1d">
-    <label for="logo">Logo</label>
-    <input id="logo" type="file" accept="image/*">
-    <label for="productsCsv">Ürün CSV</label>
-    <input id="productsCsv" type="file" accept=".csv">
-    <button id="createBtn">Mağazayı Oluştur</button>
-  </fieldset>
+  <div id="csvPanel">
+    <fieldset id="storeFields">
+      <legend>2. Mağaza bilgileri (CSV toplu mod)</legend>
+      <label for="storeName">Mağaza adı</label>
+      <input id="storeName" type="text">
+      <label for="primaryColorHex">Ana renk</label>
+      <input id="primaryColorHex" type="color" value="#dd1d1d">
+      <label for="logo">Logo</label>
+      <input id="logo" type="file" accept="image/*">
+      <label for="productsCsv">Ürün CSV</label>
+      <input id="productsCsv" type="file" accept=".csv">
+      <button id="createBtn">Mağazayı Oluştur</button>
+    </fieldset>
+  </div>
+
+  <div id="studioPanel" style="display:none">
+    <fieldset id="studioFields">
+      <legend>2. Ürün ve mağaza bilgileri (AI Stüdyosu)</legend>
+      <label for="studioStoreName">Mağaza adı</label>
+      <input id="studioStoreName" type="text">
+      <label for="studioPrimaryColorHex">Ana renk</label>
+      <input id="studioPrimaryColorHex" type="color" value="#dd1d1d">
+      <label for="studioLogo">Logo</label>
+      <input id="studioLogo" type="file" accept="image/*">
+      <label for="productName">Ürün adı</label>
+      <input id="productName" type="text">
+      <label for="productPhoto">Ürün fotoğrafı</label>
+      <input id="productPhoto" type="file" accept="image/*">
+      <label for="whatItDoes">Ne işe yarıyor</label>
+      <input id="whatItDoes" type="text">
+      <label for="basicInfo">Temel bilgiler (opsiyonel)</label>
+      <input id="basicInfo" type="text">
+      <label for="whatsappPhone">WhatsApp telefon numarası</label>
+      <input id="whatsappPhone" type="text" placeholder="+905551234567">
+      <button id="studioCreateBtn">AI ile Oluştur</button>
+    </fieldset>
+    <div id="studioResults"></div>
+  </div>
 
   <div id="log"></div>
 
