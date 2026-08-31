@@ -34,6 +34,29 @@ copy the Admin API access token — paste it into the form.
    5-8 minutes (theme upload is 439 files, uploaded sequentially to
    respect Shopify's rate limits — it's the dominant cost).
 
+## Tek Ürün AI Stüdyosu (Single-Product AI Studio)
+
+A second mode for building a single-product sales page: enter a product
+name, photo, what it does, and a WhatsApp number. The tool installs its
+own copy of the theme (with a floating WhatsApp button), then uses AI to:
+
+1. Classify the product into one of 7 fixed categories from the photo + text
+2. Generate 8 marketing images in a fixed sequence (hero, benefits,
+   problem/solution, comparison, usage, authority, social proof, final
+   CTA), styled per category
+3. Write matching sales copy for each section, plus a short reviews block
+4. Assemble it all into the product's description and publish
+
+**Images are AI-generated from scratch, not edited from your photo** —
+review each one (the results page links to every generated image) before
+relying on the page for real sales traffic.
+
+**Reviews are AI-drafted, not real.** They deliberately avoid dates,
+full surnames, or verified-purchase claims, but they are still
+fabricated. Replace them with real customer feedback as it comes in —
+publishing fabricated reviews as genuine, verified testimonials can
+violate consumer protection rules in many jurisdictions.
+
 ## Known limitations
 
 - Several homepage sections reference leftover demo content from the
@@ -54,6 +77,11 @@ copy the Admin API access token — paste it into the form.
   type, the equivalent GraphQL mutations (`productCreate`,
   `collectionCreate`, `pageCreate`) would need to replace the REST calls
   in `server/shopify.js`.
+- The studio installs its own theme copy per run — running it twice for
+  the same store creates two theme installs (the second becomes the
+  live one). This is intentional (no shared-state assumptions between
+  runs) but means old unpublished theme installs accumulate in
+  Online Store → Themes; delete old ones manually if that bothers you.
 
 ## Manual end-to-end checklist
 
@@ -70,3 +98,9 @@ relying on the tool for a real launch:
 - [ ] Collections exist and contain the right products
 - [ ] About/Contact/Shipping pages exist with sensible copy
 - [ ] The theme is actually live (published), not just uploaded
+- [ ] (Studio mode) All 8 generated images are visible on the product
+      page in the correct fixed order
+- [ ] (Studio mode) The WhatsApp button appears on the storefront and
+      links to the correct number
+- [ ] (Studio mode) The reviews block at the bottom reads as draft
+      copy you'd still want to replace, not as real customer reviews
