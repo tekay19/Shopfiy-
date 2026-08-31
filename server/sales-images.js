@@ -5,18 +5,23 @@ const IMAGE_MODEL = 'gpt-image-1';
 const IMAGE_SIZE = '1024x1024';
 
 function createSalesImagesClient(openaiClient) {
-  async function generateSalesImages({ productProfile, productName }) {
+  async function generateSalesImages({ productProfile, productName }, onError) {
     const scenes = getSceneBriefs(productProfile.category);
     const images = [];
 
     for (const scene of scenes) {
       const prompt = buildImagePrompt(scene, productProfile, productName);
-      const res = await openaiClient.images.generate({
-        model: IMAGE_MODEL,
-        prompt,
-        size: IMAGE_SIZE,
-      });
-      images.push({ slot: scene.slot, key: scene.key, base64: res.data[0].b64_json });
+      try {
+        const res = await openaiClient.images.generate({
+          model: IMAGE_MODEL,
+          prompt,
+          size: IMAGE_SIZE,
+          output_format: 'jpeg',
+        });
+        images.push({ slot: scene.slot, key: scene.key, base64: res.data[0].b64_json });
+      } catch (err) {
+        if (typeof onError === 'function') onError(scene, err);
+      }
     }
 
     return images;

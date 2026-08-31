@@ -41,6 +41,22 @@ function makeFakeSalesImagesClient() {
   };
 }
 
+function makeFakeSalesImagesClientWithOneFailure() {
+  return {
+    generateSalesImages: async (input, onError) => {
+      const results = [];
+      SCENE_KEYS.forEach((key, i) => {
+        if (i === 0) {
+          onError({ slot: i + 1, key }, new Error('content policy refusal'));
+          return;
+        }
+        results.push({ slot: i + 1, key, base64: 'abc' });
+      });
+      return results;
+    },
+  };
+}
+
 function makeFakeSalesCopyClient() {
   const section = { title: 'T', body: 'b' };
   return {
@@ -99,6 +115,19 @@ test('a single failing image upload does not abort the run', async () => {
   assert.equal(summary.imagesGenerated, 8);
   assert.equal(summary.imagesUploaded, 7);
   assert.equal(summary.published, true);
+});
+
+test('a single failing image generation does not abort the run', async () => {
+  const events = [];
+  const summary = await runCreateStudioProductJob(
+    baseInput({ salesImagesClient: makeFakeSalesImagesClientWithOneFailure() }),
+    (e) => events.push(e),
+  );
+
+  assert.equal(summary.imagesGenerated, 7);
+  assert.equal(summary.imagesUploaded, 7);
+  assert.equal(summary.published, true);
+  assert.ok(events.some((e) => e.step === 'images' && e.status === 'error' && e.message.includes('content policy refusal')));
 });
 
 test('a partial theme file upload failure skips publish and reports themeFilesFailed', async () => {

@@ -57,6 +57,13 @@ fabricated. Replace them with real customer feedback as it comes in —
 publishing fabricated reviews as genuine, verified testimonials can
 violate consumer protection rules in many jurisdictions.
 
+**Health/baby category imagery may depict AI-fabricated professionals.**
+For the `saglik_bebek` category, some of the 8 generated scenes are
+briefed to show a doctor or health expert presenting the product —
+these people are AI-generated, not real professionals, so review that
+imagery for accuracy/compliance the same way you review the reviews
+section, and never present it as a genuine doctor endorsement.
+
 ## Known limitations
 
 - Several homepage sections reference leftover demo content from the

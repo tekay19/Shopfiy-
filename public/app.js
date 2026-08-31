@@ -132,6 +132,10 @@ document.getElementById('studioCreateBtn').addEventListener('click', async () =>
 
 function renderStudioResults(doneEvent) {
   const container = document.getElementById('studioResults');
+  const notice = document.createElement('p');
+  notice.className = 'studio-ai-notice';
+  notice.textContent = '⚠ Yorumlar bölümü AI tarafından yazılmıştır — yayına almadan önce gerçek müşteri yorumlarıyla değiştirin.';
+  container.appendChild(notice);
   if (Array.isArray(doneEvent.images)) {
     for (const image of doneEvent.images) {
       const link = document.createElement('a');

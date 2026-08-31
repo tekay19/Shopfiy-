@@ -57,7 +57,9 @@ async function runCreateStudioProductJob(input, emit) {
   emit({ step: 'profile', status: 'ok', message: `Kategori: ${productProfile.category}` });
 
   emit({ step: 'images', status: 'start', message: '8 satış görseli üretiliyor...' });
-  const generatedImages = await salesImagesClient.generateSalesImages({ productProfile, productName });
+  const generatedImages = await salesImagesClient.generateSalesImages({ productProfile, productName }, (scene, err) => {
+    emit({ step: 'images', status: 'error', message: `${scene.key}: ${err.message}` });
+  });
   emit({ step: 'images', status: 'ok', message: `${generatedImages.length} görsel üretildi.` });
 
   emit({ step: 'copy', status: 'start', message: 'Satış metinleri yazılıyor...' });

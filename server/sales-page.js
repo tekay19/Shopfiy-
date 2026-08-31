@@ -8,7 +8,9 @@ function buildSalesPageHtml({ images, narrative }) {
   const parts = [];
 
   for (const key of SECTION_ORDER) {
-    const section = narrative[key];
+    const rawSection = narrative[key];
+    const hasUsableSection = rawSection && typeof rawSection.title === 'string' && typeof rawSection.body === 'string';
+    const section = hasUsableSection ? rawSection : { title: 'İçerik oluşturulamadı.', body: '<p>İçerik oluşturulamadı.</p>' };
     const imageUrl = imageUrlByKey.get(key);
 
     parts.push('<div class="ai-sales-section">');

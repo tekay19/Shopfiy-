@@ -42,6 +42,13 @@ test('omits the image tag for a section with no uploaded image', () => {
   assert.match(html, /<h2>H<\/h2>/);
 });
 
+test('renders a placeholder instead of throwing when a narrative section key is missing', () => {
+  const { benefits, ...narrative } = NARRATIVE;
+  const html = buildSalesPageHtml({ images: [], narrative });
+
+  assert.match(html, /İçerik oluşturulamadı\./);
+});
+
 test('escapes HTML in titles and review names but leaves body HTML intact', () => {
   const narrative = { ...NARRATIVE, hero: { title: '<script>x</script>', body: '<p>safe</p>' }, reviews: [{ name: '<b>X</b>', text: 'ok' }] };
   const html = buildSalesPageHtml({ images: [], narrative });
