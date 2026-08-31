@@ -21,4 +21,11 @@ function patchHeroSection(indexJsonText, { heading, text, buttonLabel }) {
   return JSON.stringify(data, null, 2);
 }
 
-module.exports = { patchSettingsData, patchHeroSection, HERO_SECTION_ID, HERO_BLOCK_ID };
+function patchWhatsappPhone(settingsDataJsonText, whatsappPhone) {
+  const data = JSON.parse(settingsDataJsonText);
+  data.current = data.current || {};
+  data.current.whatsapp_phone = whatsappPhone;
+  return JSON.stringify(data, null, 2);
+}
+
+module.exports = { patchSettingsData, patchHeroSection, patchWhatsappPhone, HERO_SECTION_ID, HERO_BLOCK_ID };

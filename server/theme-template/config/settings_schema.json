@@ -2863,5 +2863,16 @@
         "info": "If empty, a link to all products will be applied."
       }
     ]
+  },
+  {
+    "name": "WhatsApp",
+    "settings": [
+      {
+        "type": "text",
+        "id": "whatsapp_phone",
+        "label": "WhatsApp phone number",
+        "info": "Include the country code, e.g. +905551234567. Leave blank to hide the button."
+      }
+    ]
   }
 ]

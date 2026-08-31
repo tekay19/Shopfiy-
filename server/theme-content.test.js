@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { patchSettingsData, patchHeroSection } = require('./theme-content.js');
+const { patchSettingsData, patchHeroSection, patchWhatsappPhone } = require('./theme-content.js');
 
 test('patchSettingsData sets accent colors and logo reference', () => {
   const original = JSON.stringify({ current: { colors_accent_1: '#dd1d1d', colors_accent_2: '#dd1d1d' } });
@@ -48,4 +48,11 @@ test('patchHeroSection sets the bundled hero slide heading/text/button', () => {
   assert.equal(slide.heading, 'Acme Store');
   assert.equal(slide.text, '<p>Handpicked gear for every trip.</p>');
   assert.equal(slide.button_label_1, 'Shop Now');
+});
+
+test('patchWhatsappPhone sets the whatsapp_phone setting', () => {
+  const original = JSON.stringify({ current: { colors_accent_1: '#dd1d1d' } });
+  const patched = JSON.parse(patchWhatsappPhone(original, '+905551234567'));
+  assert.equal(patched.current.whatsapp_phone, '+905551234567');
+  assert.equal(patched.current.colors_accent_1, '#dd1d1d');
 });
