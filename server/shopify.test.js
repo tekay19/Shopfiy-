@@ -114,3 +114,32 @@ test('createProduct posts to products.json and returns id/handle', async () => {
   assert.deepEqual(result, { id: 999, handle: 'red-mug' });
   assert.match(fetchImpl.calls[0].url, /\/products\.json$/);
 });
+
+test('uploadImageFile returns the CDN url immediately when fileCreate resolves it right away', async () => {
+  const fetchImpl = fakeFetch([
+    { status: 200, body: { data: { stagedUploadsCreate: { stagedTargets: [{ url: 'https://upload.example/target', resourceUrl: 'https://upload.example/resource', parameters: [{ name: 'key', value: 'v' }] }], userErrors: [] } } } },
+    { status: 200, body: {} },
+    { status: 200, body: { data: { fileCreate: { files: [{ id: 'gid://shopify/MediaImage/1', fileStatus: 'READY', image: { url: 'https://cdn.example/img1.jpg' } }], userErrors: [] } } } },
+  ]);
+  const client = createShopifyClient('acme.myshopify.com', 'shpat_test', { fetchImpl, delayMs: 0, pollIntervalMs: 0 });
+
+  const result = await client.uploadImageFile(Buffer.from('fake'), 'img1.jpg', 'image/jpeg');
+
+  assert.deepEqual(result, { url: 'https://cdn.example/img1.jpg' });
+  assert.equal(fetchImpl.calls.length, 3);
+});
+
+test('uploadImageFile polls until the file becomes ready when not immediately resolved', async () => {
+  const fetchImpl = fakeFetch([
+    { status: 200, body: { data: { stagedUploadsCreate: { stagedTargets: [{ url: 'https://upload.example/target', resourceUrl: 'https://upload.example/resource', parameters: [] }], userErrors: [] } } } },
+    { status: 200, body: {} },
+    { status: 200, body: { data: { fileCreate: { files: [{ id: 'gid://shopify/MediaImage/2', fileStatus: 'UPLOADED' }], userErrors: [] } } } },
+    { status: 200, body: { data: { node: { fileStatus: 'READY', image: { url: 'https://cdn.example/img2.jpg' } } } } },
+  ]);
+  const client = createShopifyClient('acme.myshopify.com', 'shpat_test', { fetchImpl, delayMs: 0, pollIntervalMs: 0 });
+
+  const result = await client.uploadImageFile(Buffer.from('fake'), 'img2.jpg', 'image/jpeg');
+
+  assert.deepEqual(result, { url: 'https://cdn.example/img2.jpg' });
+  assert.equal(fetchImpl.calls.length, 4);
+});

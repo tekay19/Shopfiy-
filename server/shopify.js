@@ -4,6 +4,7 @@ const API_VERSION = '2024-10';
 function createShopifyClient(shopDomain, accessToken, opts = {}) {
   const fetchImpl = opts.fetchImpl || fetch;
   const delayMs = opts.delayMs === undefined ? 550 : opts.delayMs;
+  const pollIntervalMs = opts.pollIntervalMs === undefined ? 1000 : opts.pollIntervalMs;
 
   function baseUrl(path) {
     return `https://${shopDomain}/admin/api/${API_VERSION}/${path}`;
@@ -134,7 +135,7 @@ function createShopifyClient(shopDomain, accessToken, opts = {}) {
     });
   }
 
-  async function uploadLogoFile(buffer, filename, mimeType) {
+  async function stageAndCreateFile(buffer, filename, mimeType) {
     const stagedData = await graphqlRequest(
       `mutation stagedUploadsCreate($input: [StagedUploadInput!]!) {
         stagedUploadsCreate(input: $input) {
@@ -162,12 +163,12 @@ function createShopifyClient(shopDomain, accessToken, opts = {}) {
     form.append('file', new Blob([buffer], { type: mimeType }), filename);
 
     const uploadRes = await fetchImpl(target.url, { method: 'POST', body: form });
-    if (!uploadRes.ok) throw new Error(`Logo upload to staged URL failed: ${uploadRes.status}`);
+    if (!uploadRes.ok) throw new Error(`File upload to staged URL failed: ${uploadRes.status}`);
 
     const fileData = await graphqlRequest(
       `mutation fileCreate($files: [FileCreateInput!]!) {
         fileCreate(files: $files) {
-          files { id }
+          files { id fileStatus ... on MediaImage { image { url } } }
           userErrors { field message }
         }
       }`,
@@ -177,7 +178,31 @@ function createShopifyClient(shopDomain, accessToken, opts = {}) {
     const fileErrors = fileData.fileCreate.userErrors;
     if (fileErrors.length) throw new Error(`fileCreate failed: ${JSON.stringify(fileErrors)}`);
 
+    return fileData.fileCreate.files[0];
+  }
+
+  async function uploadLogoFile(buffer, filename, mimeType) {
+    await stageAndCreateFile(buffer, filename, mimeType);
     return { filename };
+  }
+
+  async function pollForFileUrl(fileId) {
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      await sleep(pollIntervalMs);
+      const data = await graphqlRequest(
+        `query($id: ID!) { node(id: $id) { ... on MediaImage { fileStatus image { url } } } }`,
+        { id: fileId },
+      );
+      if (data.node && data.node.image && data.node.image.url) return data.node.image.url;
+    }
+    throw new Error(`Image file ${fileId} did not become ready in time`);
+  }
+
+  async function uploadImageFile(buffer, filename, mimeType) {
+    const created = await stageAndCreateFile(buffer, filename, mimeType);
+    if (created.image && created.image.url) return { url: created.image.url };
+    const url = await pollForFileUrl(created.id);
+    return { url };
   }
 
   async function createProduct(payload) {
@@ -212,6 +237,7 @@ function createShopifyClient(shopDomain, accessToken, opts = {}) {
     putThemeAsset,
     publishTheme,
     uploadLogoFile,
+    uploadImageFile,
     createProduct,
     createCollection,
     addProductToCollection,
