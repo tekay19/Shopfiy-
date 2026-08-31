@@ -16,8 +16,8 @@ function createSalesCopyClient(openaiClient) {
             + '"social_proof": {"title": string, "body": string}, "final_cta": {"title": string, "body": string, "ctaLabel": string}, '
             + '"reviews": [{"name": string, "text": string}]}. '
             + 'body values may contain simple HTML like <p> and <ul>. '
-            + 'reviews must be 2-3 short, generic testimonial lines. Each "name" must be a first name plus a single last-initial only '
-            + '(e.g. "Ayşe K.") — never a full surname, never a date, never any verified-purchase or star-rating claim.',
+            + 'reviews must be 2-3 short, generic testimonial lines. The "name" must be a first name plus a single last-initial only '
+            + '(e.g. "Ayşe K."). Across both "name" and "text": never a full surname, never a date, never any verified-purchase or star-rating claim.',
         },
         {
           role: 'user',
