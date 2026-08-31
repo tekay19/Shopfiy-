@@ -1025,8 +1025,14 @@ git commit -m "Add pure sales-page body_html assembly in fixed section order"
 - Consumes: `classifyThemeFiles`/`uploadThemeFiles` (base plan Task 6), `patchSettingsData`/`patchHeroSection`/`patchWhatsappPhone` (Task 1 + base plan Task 3), `ShopifyClient` (base plan Task 5 + this plan's Task 3), `AiClient.inferBrandVoice`/`writeHeroCopy` (base plan Task 7), `createProductProfileClient` (Task 4), `createSalesImagesClient` (Task 5), `createSalesCopyClient` (Task 6), `buildSalesPageHtml` (Task 7).
 - Produces: `runCreateStudioProductJob(input, emit) -> Promise<Summary>` where
   - `input = { shopifyClient, aiClient, productProfileClient, salesImagesClient, salesCopyClient, themeTemplateDir, storeName, primaryColorHex, logoBuffer, logoFilename, logoMimeType, productName, whatItDoes, basicInfo, whatsappPhone, photoBuffer, photoBase64, photoMimeType }`
-  - `Summary = { themeId, productId, productHandle, category, imagesGenerated, imagesUploaded, published }`
+  - `Summary = { themeId, productId, productHandle, category, imagesGenerated, imagesUploaded, published, themeFilesFailed }`
   Task 9 (Express route) calls this and forwards `emit` events to the SSE stream — same pattern as the base plan's `/api/create-store` route.
+
+**Note — this task is written against the base plan's ORIGINAL Task 8, but the base plan's `server/job-runner.js` was since revised by a final-review fix wave (already merged to `master`, already present in this worktree). Follow the patterns actually in `server/job-runner.js` on disk, not the base plan document, where they differ from what's below:**
+- `config/settings_data.json` and `templates/index.json` are read from the **local** `themeTemplateDir` via `fs.readFileSync` — never via `shopifyClient.getThemeAsset` (that method still exists on the client for other uses, but re-fetching content the process already has on disk is fragile: if either file was among a partial upload failure, the re-fetch returns undefined and `JSON.parse` throws).
+- Branding and hero steps are wrapped in `try/catch` — a failure in either emits an `error` event for that step and the run continues (a failed logo upload or AI hero-copy call must not cost the product/publish steps).
+- `publishTheme` is skipped when `uploadResult.failed.length > 0` — emit a `publish`/`error` event instead and set `published: false`; the summary always includes `themeFilesFailed: uploadResult.failed.length`.
+- `uploadThemeFiles` is called with an `onProgress` callback (throttled every 25 files) — see `server/job-runner.js`'s `theme_upload` stage for the exact pattern to copy.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1038,15 +1044,17 @@ const path = require('node:path');
 const { runCreateStudioProductJob } = require('./studio-job-runner.js');
 
 function makeFakeShopifyClient() {
-  return {
+  let publishThemeCalls = 0;
+  const client = {
     createUnpublishedTheme: async () => ({ id: 999 }),
-    getThemeAsset: async () => JSON.stringify({ current: {} }),
     putThemeAsset: async () => {},
-    publishTheme: async () => {},
+    publishTheme: async () => { publishThemeCalls += 1; },
     uploadLogoFile: async (buf, filename) => ({ filename }),
     uploadImageFile: async (buf, filename) => ({ url: `https://cdn.example/${filename}` }),
     createProduct: async () => ({ id: 1, handle: 'magic-bottle' }),
   };
+  Object.defineProperty(client, 'publishThemeCalls', { get: () => publishThemeCalls });
+  return client;
 }
 
 function makeFakeAiClient() {
@@ -1112,6 +1120,7 @@ test('runs the full studio pipeline and returns a summary', async () => {
   assert.equal(summary.imagesGenerated, 8);
   assert.equal(summary.imagesUploaded, 8);
   assert.equal(summary.published, true);
+  assert.equal(summary.themeFilesFailed, 0);
   assert.ok(events.some((e) => e.step === 'done'));
 });
 
@@ -1129,6 +1138,36 @@ test('a single failing image upload does not abort the run', async () => {
   assert.equal(summary.imagesGenerated, 8);
   assert.equal(summary.imagesUploaded, 7);
   assert.equal(summary.published, true);
+});
+
+test('a partial theme file upload failure skips publish and reports themeFilesFailed', async () => {
+  const client = makeFakeShopifyClient();
+  let thrown = false;
+  client.putThemeAsset = async (themeId, key) => {
+    if (!thrown && key.includes('sections/')) {
+      thrown = true;
+      throw new Error('upload failed for this file');
+    }
+  };
+
+  const summary = await runCreateStudioProductJob(baseInput({ shopifyClient: client }), () => {});
+
+  assert.equal(summary.published, false);
+  assert.ok(summary.themeFilesFailed > 0);
+  assert.equal(client.publishThemeCalls, 0);
+});
+
+test('a thrown logo-upload error does not abort the run', async () => {
+  const client = makeFakeShopifyClient();
+  client.uploadLogoFile = async () => { throw new Error('logo upload boom'); };
+
+  const events = [];
+  const summary = await runCreateStudioProductJob(baseInput({ shopifyClient: client }), (e) => events.push(e));
+
+  assert.equal(summary.productId, 1);
+  assert.equal(summary.published, true);
+  assert.ok(events.some((e) => e.step === 'brand' && e.status === 'error'));
+  assert.ok(!events.some((e) => e.step === 'brand' && e.status === 'ok'));
 });
 ```
 
