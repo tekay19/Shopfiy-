@@ -15,6 +15,10 @@ function createApp(deps = {}) {
     createAiClient = require('./ai.js').createAiClient,
     runCreateStoreJob = require('./job-runner.js').runCreateStoreJob,
     createOpenAiClient = () => new (require('openai'))(),
+    createProductProfileClient = require('./product-profile.js').createProductProfileClient,
+    createSalesImagesClient = require('./sales-images.js').createSalesImagesClient,
+    createSalesCopyClient = require('./sales-copy.js').createSalesCopyClient,
+    runCreateStudioProductJob = require('./studio-job-runner.js').runCreateStudioProductJob,
   } = deps;
 
   const app = express();
@@ -71,6 +75,55 @@ function createApp(deps = {}) {
       logoFilename: `${shopDomain.replace(/[^a-z0-9]/gi, '-')}-logo${path.extname(logoFile.originalname) || '.png'}`,
       logoMimeType: logoFile.mimetype,
       csvText: csvFile.buffer.toString('utf8'),
+    }, emit));
+
+    res.json({ jobId });
+  });
+
+  app.post('/api/studio/create-product', upload.fields([{ name: 'logo', maxCount: 1 }, { name: 'photo', maxCount: 1 }]), (req, res) => {
+    const {
+      shopDomain, accessToken, storeName, primaryColorHex,
+      productName, whatItDoes, basicInfo, whatsappPhone,
+    } = req.body;
+    const files = req.files || {};
+    const logoFile = files.logo && files.logo[0];
+    const photoFile = files.photo && files.photo[0];
+
+    if (!shopDomain || !accessToken || !storeName || !primaryColorHex || !productName || !whatItDoes || !whatsappPhone || !logoFile || !photoFile) {
+      return res.status(400).json({ error: 'Eksik alan var.' });
+    }
+    if (!isValidShopDomain(shopDomain)) {
+      return res.status(400).json({ error: 'Geçersiz shopDomain (örn: magaza.myshopify.com olmalı)' });
+    }
+
+    const shopifyClient = createShopifyClient(shopDomain, accessToken);
+    let aiClient;
+    let productProfileClient;
+    let salesImagesClient;
+    let salesCopyClient;
+    try {
+      const openaiClient = createOpenAiClient();
+      aiClient = createAiClient(openaiClient);
+      productProfileClient = createProductProfileClient(openaiClient);
+      salesImagesClient = createSalesImagesClient(openaiClient);
+      salesCopyClient = createSalesCopyClient(openaiClient);
+    } catch (err) {
+      return res.status(400).json({ error: 'OpenAI API anahtarı eksik veya geçersiz. .env dosyasını kontrol edin.' });
+    }
+    const themeTemplateDir = path.join(__dirname, 'theme-template');
+
+    const jobId = jobStore.startJob((emit) => runCreateStudioProductJob({
+      shopifyClient, aiClient, productProfileClient, salesImagesClient, salesCopyClient,
+      themeTemplateDir,
+      storeName, primaryColorHex,
+      logoBuffer: logoFile.buffer,
+      logoFilename: `${shopDomain.replace(/[^a-z0-9]/gi, '-')}-logo${path.extname(logoFile.originalname) || '.png'}`,
+      logoMimeType: logoFile.mimetype,
+      productName, whatItDoes, basicInfo: basicInfo || '',
+      whatsappPhone,
+      photoBuffer: photoFile.buffer,
+      photoBase64: photoFile.buffer.toString('base64'),
+      photoMimeType: photoFile.mimetype,
     }, emit));
 
     res.json({ jobId });
